@@ -13,6 +13,12 @@ use App\Middleware\RoleMiddleware;
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use Dotenv\Dotenv;
+
+// Load environment variables
+$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
+
 $app = AppFactory::create();
 
 // Add error middleware
@@ -25,10 +31,10 @@ $app->addBodyParsingMiddleware();
 $app->setBasePath('/osoyoos-events/public');
 
 // Database connection
-$host = 'localhost';
-$dbname = 'osoyoos_events';
-$username = 'root';
-$password = 'Keighos01!';
+$host = $_ENV['DB_HOST'];
+$dbname = $_ENV['DB_NAME'];
+$username = $_ENV['DB_USER'];
+$password = $_ENV['DB_PASS'];
 $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
 
 try {
@@ -39,7 +45,7 @@ try {
 }
 
 // JWT secret
-$jwtSecret = 'your-secret-key';
+$jwtSecret = $_ENV['JWT_SECRET'];
 
 // Create model instances
 $userModel = new User($pdo);

@@ -1,0 +1,18 @@
+{
+    "name": "osoyoos/event-ticketing",
+    "description": "Event ticketing system for Osoyoos",
+    "type": "project",
+    "require": {
+        "php": ">=8.2",
+        "slim/slim": "4.*",
+        "slim/psr7": "^1.7",
+        "php-di/php-di": "^6.4",
+        "slim/php-view": "^3.4",
+        "firebase/php-jwt": "^6.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}

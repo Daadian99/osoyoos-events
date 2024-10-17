@@ -5,7 +5,17 @@ use App\Models\User;
 use Firebase\JWT\JWT;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="Users",
+ *     description="User management operations"
+ * )
+ * @OA\PathItem(
+ *     path="/users"
+ * )
+ */
 class UserController {
     private $user;
     private $jwtSecret;
@@ -13,49 +23,90 @@ class UserController {
     public function __construct(User $user, string $jwtSecret) {
         $this->user = $user;
         $this->jwtSecret = $jwtSecret;
+        error_log("UserController class instantiated");
     }
 
+    /**
+     * @OA\Post(
+     *     path="/register",
+     *     summary="Register a new user",
+     *     tags={"Users"},
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="username", type="string"),
+     *             @OA\Property(property="email", type="string"),
+     *             @OA\Property(property="password", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response="200", description="User registered successfully"),
+     *     @OA\Response(response="400", description="Invalid input")
+     * )
+     */
     public function register(Request $request, Response $response) {
         $data = $request->getParsedBody();
-        $username = $data['username'] ?? '';
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-        $role = $data['role'] ?? 'user';
-
-        if (empty($username) || empty($email) || empty($password)) {
+        
+        if (!isset($data['username']) || !isset($data['email']) || !isset($data['password'])) {
             return $this->jsonResponse($response, ['error' => 'Missing required fields'], 400);
         }
 
-        if ($this->user->register($username, $email, $password, $role)) {
-            return $this->jsonResponse($response, ['message' => 'User registered successfully'], 201);
+        $username = $data['username'];
+        $email = $data['email'];
+        $password = $data['password'];
+
+        if ($this->user->getUserByEmail($email)) {
+            return $this->jsonResponse($response, ['error' => 'Email already exists'], 400);
+        }
+
+        $userId = $this->user->createUser($username, $email, $password);
+        if ($userId) {
+            return $this->jsonResponse($response, ['message' => 'User registered successfully', 'userId' => $userId]);
         } else {
-            return $this->jsonResponse($response, ['error' => 'Registration failed'], 500);
+            return $this->jsonResponse($response, ['error' => 'Failed to register user'], 500);
         }
     }
 
+    /**
+     * @OA\Post(
+     *     path="/login",
+     *     summary="Login a user",
+     *     tags={"Users"},
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="email", type="string"),
+     *             @OA\Property(property="password", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response="200", description="Login successful"),
+     *     @OA\Response(response="401", description="Invalid credentials")
+     * )
+     */
     public function login(Request $request, Response $response) {
         $data = $request->getParsedBody();
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-
-        if (empty($email) || empty($password)) {
-            return $this->jsonResponse($response, ['error' => 'Email and password are required'], 400);
+        
+        if (!isset($data['email']) || !isset($data['password'])) {
+            return $this->jsonResponse($response, ['error' => 'Missing email or password'], 400);
         }
 
-        $user = $this->user->login($email, $password);
-        if ($user) {
-            $token = $this->generateToken($user);
-            error_log("UserController: Login successful for user: " . json_encode($user));
-            return $this->jsonResponse($response, ['message' => 'Login successful', 'token' => $token, 'user' => $user]);
-        } else {
-            error_log("UserController: Login failed for email: $email");
+        $email = $data['email'];
+        $password = $data['password'];
+
+        $user = $this->user->getUserByEmail($email);
+        if (!$user || !password_verify($password, $user['password'])) {
             return $this->jsonResponse($response, ['error' => 'Invalid email or password'], 401);
         }
+
+        $token = $this->generateToken($user);
+        return $this->jsonResponse($response, ['token' => $token, 'user' => [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'role' => $user['role']
+        ]]);
     }
 
     private function generateToken(array $user): string {
         $issuedAt = time();
-        $expirationTime = $issuedAt + 3600; // Token valid for 1 hour
+        $expirationTime = $issuedAt + 3600;  // valid for 1 hour
 
         $payload = [
             'iat' => $issuedAt,
@@ -65,7 +116,6 @@ class UserController {
             'role' => $user['role']
         ];
 
-        error_log("UserController: Generated token payload: " . json_encode($payload));
         return JWT::encode($payload, $this->jwtSecret, 'HS256');
     }
 
@@ -76,10 +126,39 @@ class UserController {
             ->withStatus($status);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/logout",
+     *     summary="Logout a user",
+     *     tags={"Users"},
+     *     @OA\Response(response="200", description="Logout successful")
+     * )
+     */
     public function logout(Request $request, Response $response) {
         // In a real-world scenario, you might want to invalidate the token here
         // For now, we'll just return a success message
         return $this->jsonResponse($response, ['message' => 'Logout successful']);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/users",
+     *     summary="Get all users",
+     *     tags={"Users"},
+     *     @OA\Response(response="200", description="List of users"),
+     *     @OA\Response(response="500", description="Server error")
+     * )
+     */
+    public function getAllUsers(Request $request, Response $response) {
+        $users = $this->user->getAllUsers();
+        if ($users === false) {
+            $response->getBody()->write(json_encode(['error' => 'Failed to retrieve users']));
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(500);
+        }
+        $response->getBody()->write(json_encode($users));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     // Add more methods as needed

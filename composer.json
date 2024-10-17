@@ -9,7 +9,13 @@
         "php-di/php-di": "^6.4",
         "slim/php-view": "^3.4",
         "firebase/php-jwt": "^6.10",
-        "vlucas/phpdotenv": "^5.6"
+        "vlucas/phpdotenv": "^5.6",
+        "zircote/swagger-php": "^4.11",
+        "symfony/http-kernel": "^7.1",
+        "symfony/service-contracts": "^3.5",
+        "symfony/config": "^7.1",
+        "symfony/dependency-injection": "^7.1",
+        "symfony/expression-language": "^7.1"
     },
     "autoload": {
         "psr-4": {

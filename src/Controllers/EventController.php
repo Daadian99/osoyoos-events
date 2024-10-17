@@ -4,7 +4,14 @@ namespace App\Controllers;
 use App\Models\Event;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="Events",
+ *     description="Event management operations"
+ * )
+ */
 class EventController {
     private $event;
 
@@ -12,6 +19,24 @@ class EventController {
         $this->event = $event;
     }
 
+    /**
+     * @OA\Post(
+     *     path="/events",
+     *     summary="Create a new event",
+     *     tags={"Events"},
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="title", type="string"),
+     *             @OA\Property(property="description", type="string"),
+     *             @OA\Property(property="date", type="string", format="date-time"),
+     *             @OA\Property(property="location", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response="201", description="Event created successfully"),
+     *     @OA\Response(response="400", description="Invalid input"),
+     *     @OA\Response(response="401", description="Unauthorized")
+     * )
+     */
     public function createEvent(Request $request, Response $response) {
         error_log("Entering createEvent method");
         
@@ -57,6 +82,20 @@ class EventController {
         }
     }
 
+    /**
+     * @OA\Get(
+     *     path="/events/{id}",
+     *     summary="Get an event by ID",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response="200", description="Successful operation"),
+     *     @OA\Response(response="404", description="Event not found")
+     * )
+     */
     public function getEvent(Request $request, Response $response, $args) {
         $eventId = $args['id'];
         $event = $this->event->getEvent($eventId);
@@ -68,6 +107,30 @@ class EventController {
         }
     }
 
+    /**
+     * @OA\Put(
+     *     path="/events/{id}",
+     *     summary="Update an existing event",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="title", type="string"),
+     *             @OA\Property(property="description", type="string"),
+     *             @OA\Property(property="date", type="string", format="date-time"),
+     *             @OA\Property(property="location", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response="200", description="Event updated successfully"),
+     *     @OA\Response(response="400", description="Invalid input"),
+     *     @OA\Response(response="401", description="Unauthorized"),
+     *     @OA\Response(response="404", description="Event not found")
+     * )
+     */
     public function updateEvent(Request $request, Response $response, $args) {
         $eventId = $args['id'];
         $data = $request->getParsedBody();
@@ -101,6 +164,21 @@ class EventController {
         }
     }
 
+    /**
+     * @OA\Delete(
+     *     path="/events/{id}",
+     *     summary="Delete an event",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response="200", description="Event deleted successfully"),
+     *     @OA\Response(response="401", description="Unauthorized"),
+     *     @OA\Response(response="404", description="Event not found")
+     * )
+     */
     public function deleteEvent(Request $request, Response $response, $args) {
         $eventId = $args['id'];
         $organizerId = $request->getAttribute('userId'); // From JWT middleware
@@ -120,6 +198,14 @@ class EventController {
         }
     }
 
+    /**
+     * @OA\Get(
+     *     path="/events",
+     *     summary="Get all events",
+     *     @OA\Response(response="200", description="Successful operation"),
+     *     @OA\Response(response="500", description="Server error")
+     * )
+     */
     public function getAllEvents(Request $request, Response $response) {
         $events = $this->event->getAllEvents();
 

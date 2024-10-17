@@ -4,7 +4,14 @@ namespace App\Controllers;
 use App\Models\Ticket;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="Tickets",
+ *     description="Ticket management operations"
+ * )
+ */
 class TicketController {
     private $ticket;
 
@@ -12,6 +19,29 @@ class TicketController {
         $this->ticket = $ticket;
     }
 
+    /**
+     * @OA\Post(
+     *     path="/events/{eventId}/tickets",
+     *     summary="Create a new ticket for an event",
+     *     tags={"Tickets"},
+     *     @OA\Parameter(
+     *         name="eventId",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="ticket_type", type="string"),
+     *             @OA\Property(property="price", type="number"),
+     *             @OA\Property(property="quantity", type="integer")
+     *         )
+     *     ),
+     *     @OA\Response(response="201", description="Ticket created successfully"),
+     *     @OA\Response(response="400", description="Invalid input"),
+     *     @OA\Response(response="401", description="Unauthorized")
+     * )
+     */
     public function createTicket(Request $request, Response $response, $args) {
         $eventId = $args['eventId'];
         $data = $request->getParsedBody();
@@ -37,6 +67,20 @@ class TicketController {
         }
     }
 
+    /**
+     * @OA\Get(
+     *     path="/events/{eventId}/tickets",
+     *     summary="Get all tickets for an event",
+     *     @OA\Parameter(
+     *         name="eventId",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response="200", description="Successful operation"),
+     *     @OA\Response(response="500", description="Server error")
+     * )
+     */
     public function getTicketsByEvent(Request $request, Response $response, $args) {
         $eventId = $args['eventId'];
         $tickets = $this->ticket->getTicketsByEvent($eventId);
@@ -48,6 +92,29 @@ class TicketController {
         }
     }
 
+    /**
+     * @OA\Put(
+     *     path="/tickets/{ticketId}",
+     *     summary="Update an existing ticket",
+     *     @OA\Parameter(
+     *         name="ticketId",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="ticket_type", type="string"),
+     *             @OA\Property(property="price", type="number"),
+     *             @OA\Property(property="quantity", type="integer")
+     *         )
+     *     ),
+     *     @OA\Response(response="200", description="Ticket updated successfully"),
+     *     @OA\Response(response="400", description="Invalid input"),
+     *     @OA\Response(response="401", description="Unauthorized"),
+     *     @OA\Response(response="404", description="Ticket not found")
+     * )
+     */
     public function updateTicket(Request $request, Response $response, $args) {
         $ticketId = $args['ticketId'];
         $data = $request->getParsedBody();
@@ -73,6 +140,21 @@ class TicketController {
         }
     }
 
+    /**
+     * @OA\Delete(
+     *     path="/tickets/{ticketId}",
+     *     summary="Delete a ticket",
+     *     @OA\Parameter(
+     *         name="ticketId",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response="200", description="Ticket deleted successfully"),
+     *     @OA\Response(response="401", description="Unauthorized"),
+     *     @OA\Response(response="404", description="Ticket not found")
+     * )
+     */
     public function deleteTicket(Request $request, Response $response, $args) {
         $ticketId = $args['ticketId'];
 
@@ -92,4 +174,3 @@ class TicketController {
             ->withStatus($status);
     }
 }
-

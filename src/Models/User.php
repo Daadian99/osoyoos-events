@@ -70,5 +70,16 @@ class User {
         }
     }
 
+    public function getAllUsers() {
+        $sql = "SELECT id, username, email, role FROM users";
+        try {
+            $stmt = $this->db->query($sql);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Database error in getAllUsers: " . $e->getMessage());
+            return false;
+        }
+    }
+
     // Add more methods as needed
 }

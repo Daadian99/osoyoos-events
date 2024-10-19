@@ -16,7 +16,9 @@ class JwtAuthMiddleware {
     }
 
     public function __invoke(Request $request, RequestHandler $handler): Response {
+        error_log("JwtAuthMiddleware: Middleware invoked for path: " . $request->getUri()->getPath());
         error_log("JwtAuthMiddleware: Starting token verification");
+        error_log("Authorization header: " . $request->getHeaderLine('Authorization'));
         $token = $this->getTokenFromHeader($request);
 
         if (!$token) {
@@ -30,17 +32,19 @@ class JwtAuthMiddleware {
             $decoded = JWT::decode($token, new Key($this->jwtSecret, 'HS256'));
             error_log("JwtAuthMiddleware: Decoded token: " . json_encode($decoded));
             
-            if (!isset($decoded->userId)) {
-                error_log("JwtAuthMiddleware: Token does not contain userId");
+            if (!isset($decoded->id)) {
+                error_log("JwtAuthMiddleware: Token does not contain id");
                 $response = new Response();
                 return $this->jsonResponse($response, ['error' => 'Invalid token structure'], 401);
             }
             
-            $request = $request->withAttribute('userId', $decoded->userId);
-            $request = $request->withAttribute('username', $decoded->username ?? '');
-            $request = $request->withAttribute('role', $decoded->role ?? '');
-            
-            error_log("JwtAuthMiddleware: Set attributes - userId: {$decoded->userId}, username: " . ($decoded->username ?? 'not set') . ", role: " . ($decoded->role ?? 'not set'));
+            $request = $request->withAttribute('user', [
+                'id' => $decoded->id,
+                'username' => $decoded->username ?? '',
+                'role' => $decoded->role ?? ''
+            ]);
+
+            error_log("JwtAuthMiddleware: Set user attribute - " . json_encode($request->getAttribute('user')));
             
             $response = $handler->handle($request);
             error_log("JwtAuthMiddleware: Handler processed request. Response status: " . $response->getStatusCode());
@@ -58,6 +62,7 @@ class JwtAuthMiddleware {
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
             return $matches[1];
         }
+        error_log("JwtAuthMiddleware: No token found in Authorization header");
         return null;
     }
 

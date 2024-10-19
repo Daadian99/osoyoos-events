@@ -1,85 +1,70 @@
 <?php
+
 namespace App\Models;
 
 use PDO;
-use PDOException;
+use Exception;
 
-class User {
+class User
+{
     private $db;
 
-    public function __construct(PDO $db) {
+    public function __construct(PDO $db)
+    {
         $this->db = $db;
     }
 
-    public function register($username, $email, $password, $role = 'user') {
-        $password_hash = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)";
+    public function register($username, $email, $password, $role = 'user')
+    {
         try {
-            $stmt = $this->db->prepare($sql);
-            return $stmt->execute([$username, $email, $password_hash, $role]);
-        } catch (PDOException $e) {
-            error_log("Database error: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public function login($email, $password) {
-        $sql = "SELECT id, username, password_hash, role FROM users WHERE email = ?";
-        try {
-            $stmt = $this->db->prepare($sql);
+            // Check if user already exists
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->execute([$email]);
-            $user = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            if ($user && password_verify($password, $user['password_hash'])) {
-                return [
-                    'id' => $user['id'],
-                    'username' => $user['username'],
-                    'role' => $user['role']
-                ];
+            if ($stmt->fetch()) {
+                throw new Exception("User with this email already exists");
             }
-            return false;
-        } catch (PDOException $e) {
-            error_log("Database error during login: " . $e->getMessage());
-            return false;
-        }
-    }
 
-    public function getUserRole($userId) {
-        if (empty($userId)) {
-            error_log("User model: Attempted to get role for empty user ID");
-            return false;
-        }
+            // Hash the password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = "SELECT role FROM users WHERE id = ?";
-        try {
-            error_log("User model: Attempting to get role for user ID: $userId");
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([$userId]);
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            error_log("User model: SQL query result: " . json_encode($result));
-            if ($result) {
-                error_log("User model: Role found: " . $result['role']);
-                return $result['role'];
-            } else {
-                error_log("User model: No role found for user ID: $userId");
-                return false;
+            // Insert the new user
+            $stmt = $this->db->prepare("INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)");
+            $result = $stmt->execute([$username, $email, $hashedPassword, $role]);
+
+            if (!$result) {
+                throw new Exception("Database error: " . implode(", ", $stmt->errorInfo()));
             }
-        } catch (PDOException $e) {
-            error_log("Database error in getUserRole: " . $e->getMessage());
-            return false;
+
+            return true;
+        } catch (Exception $e) {
+            error_log("Registration error: " . $e->getMessage());
+            throw $e;
         }
     }
 
-    public function getAllUsers() {
-        $sql = "SELECT id, username, email, role FROM users";
-        try {
-            $stmt = $this->db->query($sql);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Database error in getAllUsers: " . $e->getMessage());
-            return false;
+    public function login($email, $password)
+    {
+        $stmt = $this->db->prepare("SELECT id, username, password_hash, role FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user['password_hash'])) {
+            return [
+                'id' => $user['id'],
+                'username' => $user['username'],
+                'role' => $user['role']
+            ];
         }
+
+        return false;
     }
 
-    // Add more methods as needed
+    public function getAllUsers()
+    {
+        $stmt = $this->db->query("SELECT id, username, email, role, created_at FROM users");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Add any other methods you need for user management here
 }
+

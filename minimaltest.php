@@ -1,30 +1,30 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 require("vendor/autoload.php");
 
 use OpenApi\Annotations as OA;
 
-/**
- * @OA\Info(
- *     title="Osoyoos Events API",
- *     version="1.0.0",
- *     description="API for managing events in Osoyoos"
- * )
- * @OA\Server(
- *     url="http://localhost/osoyoos-events",
- *     description="Local development server"
- * )
- */
-
-class OpenApiConfig {}
-
-$openapi = \OpenApi\Generator::scan([
-    __DIR__ . '/src/Controllers',
+$openapi = new OA\OpenApi([
+    'info' => new OA\Info([
+        'title' => "Osoyoos Event Ticketing API",
+        'version' => "1.0.0",
+        'description' => "API for managing events and tickets in Osoyoos."
+    ]),
+    'servers' => [
+        new OA\Server([
+            'url' => "http://localhost/osoyoos-events",
+            'description' => "Local development server"
+        ])
+    ],
+    'paths' => [
+        new OA\PathItem([
+            'path' => '/'
+        ])
+    ]
 ]);
-// Capture the output instead of sending it directly
-ob_start();
-echo $openapi->toJson();
-$output = ob_get_clean();
-// Now we can safely set headers
+
 header('Content-Type: application/json');
-echo $output;
+echo json_encode($openapi, JSON_PRETTY_PRINT);

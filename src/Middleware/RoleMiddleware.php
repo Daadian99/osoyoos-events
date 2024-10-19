@@ -4,40 +4,37 @@ namespace App\Middleware;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Psr7\Response;
-use App\Models\User;
 
-class RoleMiddleware {
-    private $user;
+class RoleMiddleware
+{
+    private $userModel;
 
-    public function __construct(User $user) {
-        $this->user = $user;
+    public function __construct($userModel)
+    {
+        $this->userModel = $userModel;
     }
 
-    public function __invoke(Request $request, RequestHandler $handler, $roles) {
-        error_log("RoleMiddleware: Starting role verification");
-        $userId = $request->getAttribute('userId');
-        error_log("RoleMiddleware: Received user ID: " . ($userId ?? 'null'));
-        
-        if ($userId === null) {
-            error_log("RoleMiddleware: User ID is null. JWT might not be decoded correctly.");
+    public function __invoke(Request $request, RequestHandler $handler, array $roles): Response
+    {
+        error_log('RoleMiddleware: Invoked');
+        $user = $request->getAttribute('user');
+        error_log('User in RoleMiddleware: ' . json_encode($user));
+
+        if (!$user || !isset($user['role'])) {
             $response = new Response();
-            return $this->jsonResponse($response, ['error' => 'User not authenticated'], 401);
+            return $this->jsonResponse($response, ['error' => 'Unauthorized'], 401);
         }
 
-        $userRole = $this->user->getUserRole($userId);
-        error_log("RoleMiddleware: User role from database: " . ($userRole ?: 'not found'));
-        error_log("RoleMiddleware: Allowed roles: " . implode(', ', $roles));
-
-        if (!$userRole || !in_array($userRole, $roles)) {
-            $response = new Response();
-            return $this->jsonResponse($response, ['error' => 'Access denied. User role: ' . ($userRole ?: 'not found')], 403);
+        if (in_array($user['role'], $roles)) {
+            return $handler->handle($request);
         }
 
-        error_log("RoleMiddleware: Access granted for user ID: $userId with role: $userRole");
-        return $handler->handle($request);
+        $response = new Response();
+        return $this->jsonResponse($response, ['error' => 'Insufficient permissions'], 403);
     }
 
-    private function jsonResponse(Response $response, $data, int $status = 200): Response {
+    private function jsonResponse(Response $response, $data, int $status = 200): Response
+    {
         $response->getBody()->write(json_encode($data));
         return $response
             ->withHeader('Content-Type', 'application/json')

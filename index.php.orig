@@ -4,8 +4,8 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php-error.log');
 
-// Add this line to test direct file writing
-file_put_contents(__DIR__ . '/../logs/direct-log.txt', "Script started: " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
+// At the beginning of the file
+error_log("Index.php accessed");
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -18,10 +18,7 @@ use App\Models\Event;
 use App\Models\Ticket;
 use App\Middleware\JwtAuthMiddleware;
 use App\Middleware\RoleMiddleware;
-use App\Services\EmailService;
 use App\OpenApiConfig;
-use DI\Container;
-use DI\ContainerBuilder;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -30,62 +27,8 @@ use Dotenv\Dotenv;
 // Load environment variables
 $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
-// After line 31, add:
-// Database connection
-$host = $_ENV['DB_HOST'];
-$dbname = $_ENV['DB_NAME'];
-$username = $_ENV['DB_USER'];
-$password = $_ENV['DB_PASS'];
-$dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
 
-// JWT secret
-$jwtSecret = $_ENV['JWT_SECRET'];
-
-// Set up the dependency injection container
-$containerBuilder = new ContainerBuilder();
-$containerBuilder->addDefinitions([
- 
-        PDO::class => function () use ($dsn, $username, $password) {
-            return new PDO($dsn, $username, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        },
-    User::class => function (Container $c) {
-        return new User($c->get(PDO::class));
-    },
-    Event::class => function (Container $c) {
-        return new Event($c->get(PDO::class));
-    },
-    Ticket::class => function (Container $c) {
-        return new Ticket($c->get(PDO::class));
-    },
-    App\Models\Location::class => function (Container $c) {
-        return new App\Models\Location($c->get(PDO::class));
-    },
-    App\Services\EmailService::class => function () {
-        return new App\Services\EmailService();
-    },
-    UserController::class => function (Container $c) use ($jwtSecret) {
-        return new UserController($c->get(User::class), $jwtSecret);
-    },
-    EventController::class => function (Container $c) {
-        return new EventController($c->get(Event::class), $c->get(App\Models\Location::class));
-    },
-    TicketController::class => function (Container $c) {
-        return new TicketController(
-            $c->get(Ticket::class),
-            $c->get(Event::class),
-            $c->get(App\Models\Location::class),
-            $c->get(EmailService::class)
-        );
-    },
-    App\Controllers\LocationController::class => function (Container $c) {
-        return new App\Controllers\LocationController($c->get(App\Models\Location::class));
-    },
-]);
-
-$container = $containerBuilder->build();
-
-// Create the app with the container
-$app = AppFactory::createFromContainer($container);
+$app = AppFactory::create();
 
 // Add error middleware
 $app->addErrorMiddleware(true, true, true);
@@ -96,18 +39,38 @@ $app->addBodyParsingMiddleware();
 // Set the base path
 $app->setBasePath('');
 
+// Database connection
+$host = $_ENV['DB_HOST'];
+$dbname = $_ENV['DB_NAME'];
+$username = $_ENV['DB_USER'];
+$password = $_ENV['DB_PASS'];
+$dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
+
+try {
+    $pdo = new PDO($dsn, $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $stmt = $pdo->query("SELECT 1");
+    error_log("Database connection successful");
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
+}
+
+// JWT secret
+$jwtSecret = $_ENV['JWT_SECRET'];
+
+// Create model instances
+$userModel = new User($pdo);
+$eventModel = new Event($pdo);
+$ticketModel = new Ticket($pdo);
+
+// Create controller instances
+$userController = new UserController($userModel, $jwtSecret);
+$eventController = new EventController($eventModel);
+$ticketController = new TicketController($ticketModel);
 
 // Create middleware instances
 $jwtMiddleware = new JwtAuthMiddleware($jwtSecret);
-$roleMiddleware = new RoleMiddleware($container->get(User::class));
-
-
-
-$app->add(function ($request, $handler) {
-    error_log("Incoming request: " . $request->getMethod() . " " . $request->getUri()->getPath());
-    error_log("Headers: " . json_encode($request->getHeaders()));
-    return $handler->handle($request);
-});
+$roleMiddleware = new RoleMiddleware($userModel);
 
 // User routes
 /**
@@ -126,7 +89,7 @@ $app->add(function ($request, $handler) {
  *     @OA\Response(response="400", description="Invalid input")
  * )
  */
-$app->post('/register', [$container->get(UserController::class), 'register']);
+$app->post('/register', [$userController, 'register']);
 
 /**
  * @OA\Post(
@@ -143,7 +106,7 @@ $app->post('/register', [$container->get(UserController::class), 'register']);
  *     @OA\Response(response="401", description="Invalid credentials")
  * )
  */
-$app->post('/login', [$container->get(UserController::class), 'login']);
+$app->post('/login', [$userController, 'login']);
 
 /**
  * @OA\Get(
@@ -154,7 +117,7 @@ $app->post('/login', [$container->get(UserController::class), 'login']);
  *     @OA\Response(response="500", description="Server error")
  * )
  */
-$app->get('/users', [$container->get(UserController::class), 'getAllUsers']);
+$app->get('/users', [$userController, 'getAllUsers']);
 
 // Event routes
 /**
@@ -176,7 +139,11 @@ $app->get('/users', [$container->get(UserController::class), 'getAllUsers']);
  *     @OA\Response(response="401", description="Unauthorized")
  * )
  */
-$app->post('/events', [$container->get(EventController::class), 'createEvent'])->add($jwtMiddleware);
+$app->post('/events', [$eventController, 'createEvent'])
+    ->add(function($request, $handler) use ($roleMiddleware) {
+        return $roleMiddleware($request, $handler, ['organizer', 'admin']);
+    })
+    ->add($jwtMiddleware);
 
 /**
  * @OA\Get(
@@ -187,8 +154,7 @@ $app->post('/events', [$container->get(EventController::class), 'createEvent'])-
  *     @OA\Response(response="500", description="Server error")
  * )
  */
-$app->get('/events', [$container->get(EventController::class), 'getEvents']);
-$app->get('/{location}/events', [$container->get(EventController::class), 'getEvents']);
+$app->get('/events', [$eventController, 'getEvents']);
 
 /**
  * @OA\Get(
@@ -205,7 +171,7 @@ $app->get('/{location}/events', [$container->get(EventController::class), 'getEv
  *     @OA\Response(response="404", description="Event not found")
  * )
  */
-$app->get('/events/{id}', [$container->get(EventController::class), 'getEvent']);
+$app->get('/events/{id}', [$eventController, 'getEvent']);
 
 /**
  * @OA\Put(
@@ -233,8 +199,11 @@ $app->get('/events/{id}', [$container->get(EventController::class), 'getEvent'])
  *     @OA\Response(response="404", description="Event not found")
  * )
  */
-$app->put('/events/{id}', [$container->get(EventController::class), 'updateEvent'])
-    ->add($jwtMiddleware);
+$app->put('/events/{id}', [$eventController, 'updateEvent'])
+    ->add($jwtMiddleware)
+    ->add(function($request, $handler) use ($roleMiddleware) {
+        return $roleMiddleware($request, $handler, ['organizer', 'admin']);
+    });
 
 /**
  * @OA\Delete(
@@ -253,7 +222,11 @@ $app->put('/events/{id}', [$container->get(EventController::class), 'updateEvent
  *     @OA\Response(response="404", description="Event not found")
  * )
  */
-$app->delete('/events/{id}', [$container->get(EventController::class), 'deleteEvent'])->add($jwtMiddleware);
+$app->delete('/events/{id}', [$eventController, 'deleteEvent'])
+    ->add($jwtMiddleware)
+    ->add(function($request, $handler) use ($roleMiddleware) {
+        return $roleMiddleware($request, $handler, ['organizer', 'admin']);
+    });
 
 // Ticket routes
 /**
@@ -280,11 +253,11 @@ $app->delete('/events/{id}', [$container->get(EventController::class), 'deleteEv
  *     @OA\Response(response="401", description="Unauthorized")
  * )
  */
-$app->post('/events/{eventId}/tickets', [$container->get(TicketController::class), 'createTicket'])
+$app->post('/events/{eventId}/tickets', [$ticketController, 'createTicket'])
+    ->add($jwtMiddleware)
     ->add(function($request, $handler) use ($roleMiddleware) {
         return $roleMiddleware($request, $handler, ['organizer', 'admin']);
-    })
-    ->add($jwtMiddleware);
+    });
 
 /**
  * @OA\Get(
@@ -301,32 +274,7 @@ $app->post('/events/{eventId}/tickets', [$container->get(TicketController::class
  *     @OA\Response(response="404", description="Event not found")
  * )
  */
-$app->get('/events/{eventId}/tickets', [$container->get(TicketController::class), 'getTicketsByEvent']);
-  
-/**
- * @OA\Get(
- *     path="/events/{eventId}/tickets/{ticketId}",
- *     summary="Get a ticket by ID",
- *     tags={"Tickets"},
- *     security={{"bearerAuth":{}}},
- *     @OA\Parameter(
- *         name="eventId",
- *         in="path",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\Parameter(
- *         name="ticketId",
- *         in="path",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\Response(response="200", description="Ticket details"),
- *     @OA\Response(response="401", description="Unauthorized"),
- *     @OA\Response(response="404", description="Ticket not found")
- * )
- */
-$app->get('/events/{eventId}/tickets/{ticketId}', [$container->get(TicketController::class), 'getTicket']);
+$app->get('/events/{eventId}/tickets', [$ticketController, 'getTicketsByEvent']);
 
 /**
  * @OA\Put(
@@ -353,7 +301,7 @@ $app->get('/events/{eventId}/tickets/{ticketId}', [$container->get(TicketControl
  *     @OA\Response(response="404", description="Ticket not found")
  * )
  */
-$app->put('/tickets/{ticketId}', [$container->get(TicketController::class), 'updateTicket'])
+$app->put('/tickets/{ticketId}', [$ticketController, 'updateTicket'])
     ->add($jwtMiddleware)
     ->add(function($request, $handler) use ($roleMiddleware) {
         return $roleMiddleware($request, $handler, ['organizer', 'admin']);
@@ -376,40 +324,55 @@ $app->put('/tickets/{ticketId}', [$container->get(TicketController::class), 'upd
  *     @OA\Response(response="404", description="Ticket not found")
  * )
  */
-$app->delete('/tickets/{ticketId}', [$container->get(TicketController::class), 'deleteTicket'])
+$app->delete('/tickets/{ticketId}', [$ticketController, 'deleteTicket'])
     ->add($jwtMiddleware)
     ->add(function($request, $handler) use ($roleMiddleware) {
         return $roleMiddleware($request, $handler, ['organizer', 'admin']);
     });
 
-$app->add(function ($request, $handler) {
-    $response = $handler->handle($request);
-    $existingContent = (string) $response->getBody();
-    error_log("Response body: " . $existingContent);
+// Debug route
+/**
+ * @OA\Get(
+ *     path="/debug",
+ *     summary="Debug endpoint",
+ *     @OA\Response(response="200", description="Debug information")
+ * )
+ */
+$app->get('/debug', function (Request $request, Response $response) {
+    $response->getBody()->write("Debug route is working");
     return $response;
 });
 
-$app->put('/events/{eventId}/tickets/{ticketId}', [$container->get(TicketController::class), 'updateTicket']);
-$app->delete('/events/{eventId}/tickets/{ticketId}', [$container->get(TicketController::class), 'deleteTicket']);
+// Serve Swagger UI
+$app->get('/api-docs', function (Request $request, Response $response) {
+    $swagger = file_get_contents(__DIR__ . '/swagger-ui.html');
+    $response->getBody()->write($swagger);
+    return $response->withHeader('Content-Type', 'text/html');
+});
 
-$app->post('/events/{eventId}/tickets/{ticketId}/purchase', [$container->get(TicketController::class), 'purchaseTicket'])
-    ->add($jwtMiddleware);
+$app->get('/swagger.json', function (Request $request, Response $response) {
+    $openapi = \OpenApi\Generator::scan([
+        __DIR__ . '/../src',
+        __DIR__ . '/../src/Controllers',
+        __DIR__ . '/../src/OpenApiDefinitions.php',
+        __DIR__ . '/../src/OpenApiConfig.php'
+    ]);
+    $response->getBody()->write($openapi->toJson());
+    return $response->withHeader('Content-Type', 'application/json');
+});
 
-$app->get('/user/tickets', [$container->get(TicketController::class), 'getUserTickets'])
-    ->add($jwtMiddleware);
+$app->get('/swagger', function ($request, $response) {
+    $swagger = file_get_contents(__DIR__ . '/swagger.php');
+    $response->getBody()->write($swagger);
+    return $response->withHeader('Content-Type', 'application/json');
+});
 
-$app->post('/user/tickets/{purchaseId}/cancel', [$container->get(TicketController::class), 'cancelTicket'])
-    ->add($jwtMiddleware);
+$app->get('/', function (Request $request, Response $response) {
+    $response->getBody()->write("Welcome to Osoyoos Events API");
+    return $response;
+});
 
-$app->get('/user/ticket-history', [$container->get(TicketController::class), 'getTicketHistory'])
-    ->add($jwtMiddleware);
-
-$app->get('/locations', [$container->get(App\Controllers\LocationController::class), 'getLocations']);
-
-$app->get('/user/tickets/{purchaseId}', [$container->get(TicketController::class), 'getTicketDetails']);
-
-$app->delete('/user/tickets/{purchaseId}', [$container->get(TicketController::class), 'cancelTicketPurchase'])
-    ->add($jwtMiddleware);
+// Just before $app->run()
+error_log("Routes registered, about to run the app");
 
 $app->run();
-

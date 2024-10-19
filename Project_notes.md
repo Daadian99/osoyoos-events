@@ -1,20 +1,86 @@
 # Osoyoos Event Ticketing System - Project Notes
 
+## Current Project Status (as of 2024-10-18)
+- Basic CRUD operations for Events are implemented and working
+- Authentication using JWT is functional
+- Role-based access control is in place for protected routes
+- Full CRUD operations for Tickets have been implemented, tested, and verified successfully
+- OpenAPI/Swagger documentation has been implemented manually
+- Basic API documentation is now visible through Swagger UI
+
+## Recent Progress
+- Successfully implemented and tested ticket update functionality
+- Successfully implemented and tested ticket deletion functionality
+- Verified correct handling of events with no tickets
+- Improved error logging and debugging practices
+- Updated project structure to include new files related to API documentation
+
+## Key Learnings and Improvements
+1. Middleware Order: We learned the importance of middleware order in Slim. The JWT middleware must be applied before the role middleware for proper authentication.
+
+2. Error Logging: Implementing detailed error logging was crucial in identifying and resolving issues, particularly with authentication and database operations.
+
+3. Environment Variables: Using .env for sensitive information like database credentials and JWT secrets has improved our security practices.
+
+4. Input Validation: We've implemented more robust input validation, especially for ticket operations, to ensure data integrity.
+
+5. Error Handling: We've improved our error handling to provide more meaningful responses to the client, which aids in debugging and improves user experience.
+
+6. Database Checks: We learned the importance of checking for the existence of related entities (e.g., events) before performing operations like ticket creation, updating, or deletion.
+
 ## Project Overview
 - Web-based event ticketing system for Osoyoos, BC
 - Focus: Local music events, wine tours, outdoor activities
 - Tech Stack: PHP 8.2.18, MySQL, Slim Framework, Bootstrap
 - Target: $1000/month revenue
 
-## Current Status
-- Basic CRUD operations for Events are implemented and working
-- Authentication using JWT is functional
-- Role-based access control is in place for protected routes
-- Project initiated in C:\wamp64\www\osoyoos-events
-- Basic directory structure created
-- Composer.json file manually created
-- Dependencies installed
-- Basic index.php file created in public directory
+## File Structure
+[Abbreviated for brevity. Full structure available in folderstructure.txt]
+
+C:.
+│   .env
+│   .env.example
+│   .gitignore
+│   composer.json
+│   composer.lock
+│   osoyoos_events.sql
+│   Project_notes.md
+│   README.md
+│
+├───public
+│       .htaccess
+│       index.php
+│       swagger-ui.html
+│       swagger.php
+│
+├───src
+│   │   OpenApiConfig.php
+│   │   OpenApiDefinitions.php
+│   │
+│   ├───Controllers
+│   │       EventController.php
+│   │       TicketController.php
+│   │       UserController.php
+│   │
+│   ├───Middleware
+│   │       JwtAuthMiddleware.php
+│   │       RoleMiddleware.php
+│   │
+│   └───Models
+│           Event.php
+│           Ticket.php
+│           User.php
+│
+├───logs
+│       php-error.log
+│       direct-log.txt
+│
+├───tests
+└───vendor
+    [... vendor contents ...]
+
+## Database Schema
+[No changes to the schema in this update]
 
 ## Key Components
 1. EventController: Handles event-related operations (create, read, update, delete)
@@ -23,139 +89,91 @@
 4. User Model: Handles user-related database operations
 5. JwtAuthMiddleware: Authenticates users using JWT
 6. RoleMiddleware: Enforces role-based access control
-
-## Database Structure
-- Users table: id, username, email, password, role
-- Events table: id, title, description, date, location, organizer_id
+7. TicketController: Manages full CRUD operations for tickets
+8. Ticket Model: Handles all ticket-related database operations including create, read, update, and delete
 
 ## API Endpoints
-- POST /register: User registration
-- POST /login: User login
-- POST /events: Create a new event (protected)
-- GET /events: Retrieve all events
-- GET /events/{id}: Retrieve a specific event
-- PUT /events/{id}: Update an event (protected)
-- DELETE /events/{id}: Delete an event (protected)
+[Previous endpoints remain the same, with the addition of:]
+- PUT /events/{eventId}/tickets/{ticketId}: Update an existing ticket (protected)
+- DELETE /events/{eventId}/tickets/{ticketId}: Delete a ticket (protected)
+
+## Recent Challenges and Solutions
+1. JWT Authentication Issues:
+   - Challenge: User was not being authenticated properly in the ticket creation process.
+   - Solution: Added more detailed logging in JwtAuthMiddleware and ensured proper order of middleware application.
+
+2. Role-based Access Control:
+   - Challenge: RoleMiddleware was not receiving the authenticated user information.
+   - Solution: Adjusted middleware order to ensure JWT authentication occurs before role checking.
+
+3. Error Logging:
+   - Challenge: Difficulty in identifying the source of authentication and authorization errors.
+   - Solution: Implemented comprehensive logging throughout the authentication process and in key controller methods.
+
+4. Event Existence Verification:
+   - Challenge: Attempted to create tickets for non-existent events.
+   - Solution: Added checks in the TicketController to verify event existence before ticket creation.
+
+5. Ticket Update and Delete Operations:
+   - Challenge: Ensuring proper authorization and validation for ticket modifications.
+   - Solution: Implemented checks for event existence, ticket ownership, and user roles before allowing updates or deletions.
+
+## Debugging Practices
+1. Use detailed error logging in middleware and controllers.
+2. Implement step-by-step logging to trace the flow of requests through the application.
+3. Use curl commands for testing API endpoints and debugging.
+4. Regularly check and analyze the contents of php-error.log and direct-log.txt.
 
 ## Next Steps
-1. Verify development environment setup
-2. Implement ticket creation and management features
-3. Develop event creation and management features (completed)
-4. Create ticket purchasing system
-5. Integrate payment gateway
-6. Design and implement responsive UI
-7. Develop basic reporting functionality
-8. Implement pagination for event listings
-9. Add search and filter functionality for events
-10. Enhance error handling and input validation
-11. Write unit and integration tests
-12. Plan frontend development
+1. Implement ticket purchasing feature
+2. Add more robust input validation for all ticket operations
+3. Implement pagination for ticket listing
+4. Begin frontend development
+5. Implement unit and integration tests
+6. Enhance user management features (profile management, password reset)
+7. Implement event search and filtering
+8. Add support for event categories
+9. Implement a global error handler for consistent error responses
+10. Set up automated testing and deployment pipelines
 
-## Detailed Task List
-1. Verify development environment
-   - [x] Confirm PHP 8.2 is running
-   - [x] Verify Composer installation and version
-   - [x] Check if Slim Framework is properly installed
-   - [x] Test basic "Hello, Osoyoos Events!" page
+## Notes for Future Development
+- Always apply the JWT middleware before role-based middleware in protected routes.
+- Regularly review and update the OpenAPI documentation as new endpoints are added or modified.
+- Maintain comprehensive error logging to facilitate debugging.
+- Consider implementing a more robust logging solution like Monolog in the future.
+- Regularly backup the database and keep the schema updated in version control.
+- As the project grows, consider implementing a caching layer to improve performance.
+- Keep security at the forefront: regularly update dependencies and conduct security audits.
 
-2. Create database schema
-   - [x] Design tables for users, events, tickets, organizers
-   - [x] Create SQL script for database initialization
+## Reminders
+- Regularly check for PHP and dependency updates.
+- Keep the .env file secure and never commit it to version control.
+- Regularly review and update the README.md file with setup instructions and project updates.
+- Consider setting up automated testing and deployment pipelines as the project matures.
 
-3. Implement user authentication system
-   - [x] Set up user registration endpoint
-   - [x] Implement login functionality
-   - [x] Add password hashing and security measures
+## Development Environment Notes
+- The project is being developed on a Windows system.
+- When providing curl commands or any shell commands, ensure they are Windows Command Prompt compatible.
+- Avoid using single quotes for JSON data in curl commands. Use escaped double quotes instead.
 
-4. Develop event creation and management features
-   - [x] Create API endpoints for CRUD operations on events
-   - [x] Implement event listing and details pages
-   - [ ] Add image upload functionality for event photos
+## Recent Progress (as of 2024-10-18)
+- Successfully implemented and tested the ticket update functionality.
+- Successfully implemented and tested the ticket deletion functionality.
+- Verified correct handling of events with no tickets.
+- Sample successful update command:
+  ```
+  curl -X PUT http://osoyoos-events.localhost/events/3/tickets/2 -H "Content-Type: application/json" -d "{\"ticket_type\":\"VIP\", \"price\":100.00, \"quantity\":50}"
+  ```
+- Sample successful delete command:
+  ```
+  curl -X DELETE http://osoyoos-events.localhost/events/3/tickets/2
+  ```
+- Verified deletion by fetching tickets for an event:
+  ```
+  curl http://osoyoos-events.localhost/events/3/tickets
+  {"event":{"id":3,"title":"Organizer Event","description":"An event created by an organizer","date":"2024-08-01 18:00:00","location":"Osoyoos Community Centre","organizer_id":2,"created_at":"2024-10-14 21:34:17"},"tickets":[]}
+  ```
 
-5. Create ticket purchasing system
-   - [ ] Develop shopping cart functionality
-   - [ ] Implement checkout process
-   - [ ] Create order confirmation system
-
-6. Integrate payment gateway
-   - [ ] Set up PayPal SDK
-   - [ ] Implement payment processing
-   - [ ] Add payment confirmation and error handling
-
-7. Design and implement responsive UI
-   - [ ] Set up Bootstrap
-   - [ ] Create responsive layouts for all pages
-   - [ ] Implement mobile-friendly navigation
-
-8. Develop basic reporting functionality
-   - [ ] Create dashboard for event organizers
-   - [ ] Implement ticket sales reports
-   - [ ] Add basic analytics for event performance
-
-## Notes
-- Focus on simplicity and ease of use for local businesses
-- Prioritize mobile responsiveness for tourists
-- Consider local partnerships for initial user base
-- Plan for scalability to handle peak tourist season
-- JWT secret key is stored in the index.php file - consider moving this to an environment variable for better security
-- Current role system uses 'organizer' and 'admin' roles - may need to expand this in the future
-- Remember to check the PHP error logs (C:\wamp64\logs\php_error.log) for debugging
-
-## Development Process Improvements
-
-1. Version Control:
-   - Set up a Git repository for the project
-   - Create a .gitignore file to exclude sensitive information and unnecessary files
-
-2. Environment Configuration:
-   - Implement a .env file for storing configuration variables
-   - Update code to use these environment variables instead of hardcoded values
-
-3. API Documentation:
-   - Set up Swagger/OpenAPI for documenting API endpoints
-   - Keep documentation up-to-date as we develop new features
-
-4. Automated Testing:
-   - Set up PHPUnit for unit testing
-   - Start writing tests for existing models and controllers
-   - Aim for at least 70% code coverage
-
-5. Code Linting:
-   - Install PHP_CodeSniffer
-   - Set up a configuration file (.phpcs.xml) with our preferred coding standards
-
-6. Development Workflow:
-   - Set up a GitHub Projects board or Trello board for task management
-   - Use feature branches for new developments
-
-7. Logging:
-   - Implement Monolog for more comprehensive logging
-   - Set up different log levels (debug, info, warning, error)
-
-8. Error Handling:
-   - Implement a global error handler
-   - Create custom exception classes for different types of errors
-
-9. Postman Collection:
-   - Create a Postman collection for all API endpoints
-   - Include example requests and responses
-
-10. README File:
-    - Create a comprehensive README.md in the project root
-    - Include setup instructions, requirements, and basic usage guide
-
-Priority Order:
-1. Version Control
-2. Environment Configuration
-3. README File
-4. API Documentation
-5. Automated Testing
-6. Logging and Error Handling
-7. Code Linting
-8. Development Workflow
-9. Postman Collection
-
-Next immediate steps:
-1. Set up Git repository and create .gitignore file
-2. Create .env file and update code to use environment variables
-3. Draft initial README.md with setup instructions
+## Current Status
+- Full CRUD (Create, Read, Update, Delete) operations for tickets have been implemented, tested, and verified successfully.
+- The system correctly handles the scenario of an event with no tickets.

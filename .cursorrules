@@ -39,3 +39,8 @@ Project-specific guidelines:
 - Use meaningful variable and function names that reflect their purpose
 - Comment complex logic or algorithms
 - Always consider scalability in your solutions
+- Remember that the project is using Slim 4 framework. Always use the appropriate methods for handling requests and responses in Slim 4
+- Before suggesting changes or fixes, always refer to the Project_notes.md file to avoid repeating past mistakes or redundant implementations
+- When encountering errors, always check both the frontend console and the backend logs before proposing solutions
+- Keep the Project_notes.md file updated with any new challenges faced and solutions implemented
+- When providing code examples, ensure they are consistent with the existing project structure and coding style

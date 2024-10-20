@@ -195,9 +195,9 @@ class TicketController
                 return $this->jsonResponse($response, ['error' => "You can only purchase up to {$maxTicketsPerUser} tickets for this event"], 400);
             }
 
-            // Reserve the tickets
-            if (!$this->ticketModel->reserveTickets($ticketId, $quantity, $user['id'])) {
-                throw new \Exception('Failed to reserve tickets');
+            // Create a temporary reservation
+            if (!$this->ticketModel->createTemporaryReservation($ticketId, $quantity, $user['id'])) {
+                throw new \Exception('Failed to create temporary reservation');
             }
 
             // Perform the purchase
@@ -330,5 +330,37 @@ class TicketController
         }
 
         return $errors;
+    }
+
+    public function purchaseTickets(Request $request, Response $response): Response
+    {
+        $data = $request->getParsedBody();
+        $userId = $request->getAttribute('userId'); // Assuming you have middleware that sets this
+
+        try {
+            $result = $this->ticketModel->purchaseTickets($userId, $data['eventId'], $data['tickets']);
+            
+            $responseData = [
+                'success' => true,
+                'message' => 'Tickets purchased successfully',
+                'data' => $result
+            ];
+            
+            $response->getBody()->write(json_encode($responseData));
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
+        } catch (\Exception $e) {
+            $responseData = [
+                'success' => false,
+                'message' => 'Failed to purchase tickets',
+                'error' => $e->getMessage()
+            ];
+            
+            $response->getBody()->write(json_encode($responseData));
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(400);
+        }
     }
 }

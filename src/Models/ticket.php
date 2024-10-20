@@ -44,14 +44,34 @@ class Ticket
 
     public function updateTicket($ticketId, $eventId, $data)
     {
-        $sql = "UPDATE tickets SET ticket_type = ?, price = ?, quantity = ? WHERE id = ? AND event_id = ?";
-        $stmt = $this->db->prepare($sql);
-        $result = $stmt->execute([$data['ticket_type'], $data['price'], $data['quantity'], $ticketId, $eventId]);
-        
-        if ($result) {
-            return $this->getTicket($ticketId, $eventId);
+        try {
+            // First, check if the ticket exists
+            $checkSql = "SELECT * FROM tickets WHERE id = ? AND event_id = ?";
+            $checkStmt = $this->db->prepare($checkSql);
+            $checkStmt->execute([$ticketId, $eventId]);
+            $ticket = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$ticket) {
+                return false; // Ticket not found
+            }
+
+            // If ticket exists, proceed with update
+            $sql = "UPDATE tickets SET ticket_type = ?, price = ?, quantity = ? WHERE id = ? AND event_id = ?";
+            $stmt = $this->db->prepare($sql);
+            $result = $stmt->execute([
+                $data['ticket_type'],
+                $data['price'],
+                $data['quantity'],
+                $ticketId,
+                $eventId
+            ]);
+
+            return $result;
+        } catch (PDOException $e) {
+            // Log the error and return false
+            error_log("Error updating ticket: " . $e->getMessage());
+            return false;
         }
-        return false;
     }
 
     public function deleteTicket($ticketId, $eventId)
@@ -230,7 +250,7 @@ class Ticket
         return $result ? (int)$result['available'] : 0;
     }
 
-    public function reserveTickets($ticketId, $quantity, $userId)
+    public function createTemporaryReservation($ticketId, $quantity, $userId)
     {
         $expirationTime = date('Y-m-d H:i:s', strtotime('+15 minutes'));
         $stmt = $this->db->prepare("
@@ -270,5 +290,47 @@ class Ticket
         ");
         $stmt->execute(['purchaseId' => $purchaseId, 'userId' => $userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function purchaseTickets(int $userId, int $eventId, array $tickets): array
+    {
+        $this->db->beginTransaction();
+
+        try {
+            $purchaseId = $this->createPurchase($userId, $eventId);
+
+            foreach ($tickets as $ticketTypeId => $quantity) {
+                $this->reserveTickets($purchaseId, $ticketTypeId, $quantity);
+            }
+
+            $this->db->commit();
+            return ['purchaseId' => $purchaseId];
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    private function createPurchase(int $userId, int $eventId): int
+    {
+        $stmt = $this->db->prepare("INSERT INTO purchases (user_id, event_id, purchase_date) VALUES (?, ?, NOW())");
+        $stmt->execute([$userId, $eventId]);
+        return $this->db->lastInsertId();
+    }
+
+    private function reserveTickets(int $purchaseId, int $ticketTypeId, int $quantity): void
+    {
+        // Check available capacity
+        $stmt = $this->db->prepare("SELECT capacity, (SELECT COUNT(*) FROM purchased_tickets WHERE ticket_type_id = ?) as sold FROM ticket_types WHERE id = ?");
+        $stmt->execute([$ticketTypeId, $ticketTypeId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result['capacity'] - $result['sold'] < $quantity) {
+            throw new \Exception("Not enough tickets available for ticket type {$ticketTypeId}");
+        }
+
+        // Reserve tickets
+        $stmt = $this->db->prepare("INSERT INTO purchased_tickets (purchase_id, ticket_type_id, quantity) VALUES (?, ?, ?)");
+        $stmt->execute([$purchaseId, $ticketTypeId, $quantity]);
     }
 }

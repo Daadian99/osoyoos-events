@@ -1,38 +1,92 @@
 # Osoyoos Event Ticketing System - Project Notes
 
-## Current Project Status (as of 2024-10-18)
-- Basic CRUD operations for Events are implemented and working
-- Authentication using JWT is functional
-- Role-based access control is in place for protected routes
-- Full CRUD operations for Tickets have been implemented, tested, and verified successfully
-- OpenAPI/Swagger documentation has been implemented manually
-- Basic API documentation is now visible through Swagger UI
+## Current Project Status (as of 2024-10-21)
+- All core functionalities are implemented and working:
+  - User authentication (registration, login) with JWT
+  - Full CRUD operations for Events
+  - Full CRUD operations for Tickets
+  - Ticket purchasing feature
+  - Role-based access control
+  - Ticket cancellation feature
+- API documentation is available through Swagger UI
+- Error logging and debugging practices have been improved
+- Unit tests have been implemented and are passing (14 tests, 35 assertions)
 
-## Recent Progress
-- Successfully implemented and tested ticket update functionality
-- Successfully implemented and tested ticket deletion functionality
-- Verified correct handling of events with no tickets
-- Improved error logging and debugging practices
-- Updated project structure to include new files related to API documentation
+## Recent Achievements
+1. Fixed EmailService class not found error in index.php
+2. Successfully implemented and tested login functionality
+3. Implemented and verified ticket cancellation feature
+4. Completed ticket purchasing feature with all necessary checks and validations
+5. Implemented unit tests for Event and Ticket models
+6. Resolved issues with mocking in Ticket model tests
+7. Successfully implemented ticket type fetching in the frontend
+8. Updated ticket quantity selection to allow for 0 tickets
+9. Updated the TicketSelection component to display event details in a more user-friendly format
+10. Implemented date formatting using date-fns library
+11. Implemented total price calculation in the TicketSelection component
+12. Adjusted strategy to use immediate split payments instead of batch payouts
+13. Implemented organizer choice for fee display in ticket prices
+14. Implemented ticket quantity validation to prevent overbooking
+15. Added client-side validation for purchase submissions
+16. Implemented backend API endpoint for ticket purchases
+17. Created frontend functionality to submit purchases
+18. Added loading state and error handling for purchase submissions
+19. Completed and tested the full ticket purchase flow, including frontend and backend integration
+20. Implemented proper error handling and user feedback for the purchase process
+21. Successfully debugged and resolved server configuration issues
+22. Optimized .htaccess file for better performance and security
+23. Improved error logging and debugging practices
+24. Verified functionality of all existing API endpoints
 
-## Key Learnings and Improvements
-1. Middleware Order: We learned the importance of middleware order in Slim. The JWT middleware must be applied before the role middleware for proper authentication.
+## Key Components and Their Status
+1. UserController & User Model: Fully functional for registration and login
+2. EventController & Event Model: CRUD operations working as expected, unit tests passing
+3. TicketController & Ticket Model: All CRUD operations verified and working, including ticket purchasing and cancellation, unit tests passing
+4. JwtAuthMiddleware: Correctly authenticating users
+5. RoleMiddleware: Properly enforcing role-based access control
+6. EmailService: Integrated and functional (ensure SMTP settings are correct in .env)
 
-2. Error Logging: Implementing detailed error logging was crucial in identifying and resolving issues, particularly with authentication and database operations.
+## API Endpoints
+- POST /register: User registration
+- POST /login: User login, returns JWT token
+- GET /events: List all events
+- POST /events: Create a new event (protected)
+- GET /events/{id}: Get a specific event
+- PUT /events/{id}: Update an event (protected)
+- DELETE /events/{id}: Delete an event (protected)
+- GET /events/{eventId}/tickets: List all tickets for an event
+- POST /events/{eventId}/tickets: Create a new ticket for an event (protected)
+- GET /events/{eventId}/tickets/{ticketId}: Get a specific ticket
+- PUT /events/{eventId}/tickets/{ticketId}: Update a ticket (protected)
+- DELETE /events/{eventId}/tickets/{ticketId}: Delete a ticket (protected)
+- POST /events/{eventId}/tickets/{ticketId}/purchase: Purchase a ticket (protected)
+- GET /user/tickets: Get user's purchased tickets (protected)
+- DELETE /user/tickets/{purchaseId}: Cancel a ticket purchase (protected)
+- GET /user/ticket-history: Get user's ticket purchase history (protected)
 
-3. Environment Variables: Using .env for sensitive information like database credentials and JWT secrets has improved our security practices.
+## Next Steps
+1. Begin frontend development (priority for next session)
+2. Implement pagination for listing endpoints (events, tickets)
+3. Enhance user management (profile management, password reset)
+4. Implement event search and filtering
+5. Add support for event categories
+6. Implement a global error handler for consistent error responses
+7. Set up automated testing and deployment pipelines
+8. Consider implementing integration tests
 
-4. Input Validation: We've implemented more robust input validation, especially for ticket operations, to ensure data integrity.
+## Reminders
+- Always apply JwtAuthMiddleware before RoleMiddleware in protected routes
+- Keep OpenAPI documentation updated as you modify or add endpoints
+- Regularly check for PHP and dependency updates
+- Never commit .env file to version control
+- When suggesting changes, always check existing code first to avoid redundancy
+- Always check the existing implementation before suggesting changes to avoid redundancy
+- Remember that the project is using Slim 4, and adjust all API response handling accordingly
 
-5. Error Handling: We've improved our error handling to provide more meaningful responses to the client, which aids in debugging and improves user experience.
-
-6. Database Checks: We learned the importance of checking for the existence of related entities (e.g., events) before performing operations like ticket creation, updating, or deletion.
-
-## Project Overview
-- Web-based event ticketing system for Osoyoos, BC
-- Focus: Local music events, wine tours, outdoor activities
-- Tech Stack: PHP 8.2.18, MySQL, Slim Framework, Bootstrap
-- Target: $1000/month revenue
+## Development Environment
+- Windows system
+- Use Windows Command Prompt compatible commands for testing
+- For JSON data in curl commands, use escaped double quotes
 
 ## File Structure
 [Abbreviated for brevity. Full structure available in folderstructure.txt]
@@ -118,23 +172,34 @@ C:.
    - Challenge: Ensuring proper authorization and validation for ticket modifications.
    - Solution: Implemented checks for event existence, ticket ownership, and user roles before allowing updates or deletions.
 
+6. Unit Testing for Ticket Model:
+   - Challenge: Mocking PDO and PDOStatement for complex database operations in tests.
+   - Solution: Adjusted test setup to properly mock database interactions and match the actual implementation of methods like `purchaseTicket`.
+
+7. Ticket Type Fetching:
+   - Challenge: The API endpoint for fetching ticket types was returning an error due to the use of `withJson()` method in Slim 4.
+   - Solution: Updated the `EventController` to use the correct method for sending JSON responses in Slim 4:
+     ```php
+     $response->getBody()->write(json_encode($data));
+     return $response
+         ->withHeader('Content-Type', 'application/json')
+         ->withStatus(200);
+     ```
+
+8. Ticket Quantity Default Value:
+   - Challenge: Ticket quantities were defaulting to 1 instead of 0.
+   - Solution: Updated the `fetchTicketTypes` function to initialize all quantities to 0, and modified the select element to use the nullish coalescing operator for defaulting to 0.
+
+9. TypeScript Error Handling:
+    - Challenge: The catch block in the purchase function was causing a TypeScript error due to the implicit 'any' type of the caught error.
+    - Solution: Implemented proper error typing and checking in the catch block to ensure type safety and provide meaningful error messages.
+
 ## Debugging Practices
 1. Use detailed error logging in middleware and controllers.
 2. Implement step-by-step logging to trace the flow of requests through the application.
 3. Use curl commands for testing API endpoints and debugging.
 4. Regularly check and analyze the contents of php-error.log and direct-log.txt.
-
-## Next Steps
-1. Implement ticket purchasing feature
-2. Add more robust input validation for all ticket operations
-3. Implement pagination for ticket listing
-4. Begin frontend development
-5. Implement unit and integration tests
-6. Enhance user management features (profile management, password reset)
-7. Implement event search and filtering
-8. Add support for event categories
-9. Implement a global error handler for consistent error responses
-10. Set up automated testing and deployment pipelines
+5. When encountering API errors, always check the PHP error logs and the response from direct API calls before making changes to the frontend.
 
 ## Notes for Future Development
 - Always apply the JWT middleware before role-based middleware in protected routes.
@@ -144,36 +209,253 @@ C:.
 - Regularly backup the database and keep the schema updated in version control.
 - As the project grows, consider implementing a caching layer to improve performance.
 - Keep security at the forefront: regularly update dependencies and conduct security audits.
-
-## Reminders
-- Regularly check for PHP and dependency updates.
-- Keep the .env file secure and never commit it to version control.
-- Regularly review and update the README.md file with setup instructions and project updates.
-- Consider setting up automated testing and deployment pipelines as the project matures.
+- As we move to frontend development, consider implementing a state management solution (e.g., Redux for React) to handle complex application state.
+- Plan for responsive design from the start of frontend development to ensure mobile-friendliness.
+- When implementing new features or fixing bugs, always refer to these project notes to avoid repeating past mistakes or redundant implementations.
+- Regularly update these project notes with new information, challenges faced, and solutions implemented.
 
 ## Development Environment Notes
 - The project is being developed on a Windows system.
 - When providing curl commands or any shell commands, ensure they are Windows Command Prompt compatible.
 - Avoid using single quotes for JSON data in curl commands. Use escaped double quotes instead.
 
-## Recent Progress (as of 2024-10-18)
-- Successfully implemented and tested the ticket update functionality.
-- Successfully implemented and tested the ticket deletion functionality.
-- Verified correct handling of events with no tickets.
-- Sample successful update command:
-  ```
-  curl -X PUT http://osoyoos-events.localhost/events/3/tickets/2 -H "Content-Type: application/json" -d "{\"ticket_type\":\"VIP\", \"price\":100.00, \"quantity\":50}"
-  ```
-- Sample successful delete command:
-  ```
-  curl -X DELETE http://osoyoos-events.localhost/events/3/tickets/2
-  ```
-- Verified deletion by fetching tickets for an event:
-  ```
-  curl http://osoyoos-events.localhost/events/3/tickets
-  {"event":{"id":3,"title":"Organizer Event","description":"An event created by an organizer","date":"2024-08-01 18:00:00","location":"Osoyoos Community Centre","organizer_id":2,"created_at":"2024-10-14 21:34:17"},"tickets":[]}
-  ```
+## Current Status
+- Backend development is largely complete with all planned features implemented and tested.
+- Unit tests are in place and passing for core functionalities.
+- The project is ready to move into the frontend development phase.
+- Frontend development is progressing, with the TicketSelection component now correctly defaulting ticket quantities to 0 and allowing selection from 0 to 20 tickets.
+
+## Next Session Focus
+- Continue refining the TicketSelection component:
+  - Implement total price calculation based on selected ticket quantities
+  - Add validation to ensure users can't purchase more tickets than available capacity
+  - Implement the purchase functionality, integrating with the backend API
+- Begin work on the event listing and details pages
+- Implement user authentication in the frontend
+
+## Dependencies Added
+- date-fns: For advanced date formatting in the frontend
+
+## Recent Achievements
+[Add to the existing list]
+10. Implemented total price calculation in the TicketSelection component
 
 ## Current Status
-- Full CRUD (Create, Read, Update, Delete) operations for tickets have been implemented, tested, and verified successfully.
-- The system correctly handles the scenario of an event with no tickets.
+[Update or add]
+- The TicketSelection component now calculates and displays the total price based on selected ticket quantities
+
+## Next Session Focus
+1. Implement validation for ticket purchases:
+   - Add checks to ensure users can't select more tickets than available capacity
+   - Implement client-side validation before submitting the purchase
+2. Create the purchase functionality:
+   - Develop a function to handle the ticket purchase process
+   - Integrate with the backend API to submit the purchase
+3. Improve user feedback:
+   - Add loading states during API calls
+   - Implement error handling and display error messages to the user
+4. Enhance the UI:
+   - Add a summary section showing the selected tickets and total price
+   - Improve the overall styling and responsiveness of the component
+5. Begin work on the event listing page:
+   - Create a new component to display a list of available events
+   - Implement pagination or infinite scrolling for the event list
+
+## Reminders
+- Ensure all new functionality is thoroughly tested
+- Keep accessibility in mind when implementing new UI features
+- Update the API documentation if any new endpoints are required for the purchase functionality
+
+## Recent Challenges and Solutions
+[Add to the existing list]
+9. TypeScript Error in Total Price Calculation:
+   - Challenge: The editor was showing an error for `ticket.price` in the total price calculation.
+   - Solution: Updated the `TicketType` interface to explicitly type `price` as a string or number, and used `Number(ticket.price)` in the calculation to handle both cases.
+
+## Reminders
+[Add to the existing list]
+- When working with data from the API, ensure that the TypeScript interfaces accurately reflect the structure of the returned data.
+- Use `Number()` instead of `parseFloat()` or `parseInt()` when converting string numbers to ensure compatibility with both string and number types.
+
+## Monetization Strategy Considerations
+- Implemented a transparent fee structure for paid events:
+  1. Free tier for organizers creating only free events
+  2. Per-ticket fee for paid events (e.g., 5% of ticket price or $0.50, whichever is higher)
+  3. Fees are clearly displayed to customers during purchase
+- Added flexibility for organizers to choose whether to include fees in ticket prices or display them separately
+- System calculates and tracks fees regardless of display preference, ensuring platform revenue
+
+## PayPal Integration Considerations
+- Use PayPal's split payment feature to divide funds between platform and organizer immediately
+- Organizers handle their own refunds, reducing platform liability
+- Fees are collected at the time of purchase, not in batches
+
+## Recent Achievements
+[Add to the existing list]
+11. Implemented detailed fee calculation and display in the TicketSelection component
+12. Adjusted strategy to use immediate split payments instead of batch payouts
+
+## Next Steps
+1. Implement backend support for fee calculation and PayPal split payments
+2. Integrate PayPal SDK for split payment processing
+3. Create an admin interface for managing fee structures
+4. Develop a clear pricing page to communicate the fee structure to users
+5. Implement analytics to track usage and revenue for different event types
+
+## Reminders
+- Ensure the PayPal integration properly handles split payments
+- Clearly communicate to organizers that they are responsible for handling refunds
+- Regularly review and adjust the fee structure based on user feedback and platform growth
+- Maintain transparency in fee communication to both organizers and ticket buyers
+
+## Next Steps
+[Add to the existing list]
+6. Update event creation/editing interface to allow organizers to set fee display preference
+7. Modify backend API to store and return fee display preference for each event/ticket type
+
+## Reminders
+[Add to the existing list]
+- Ensure clear communication to organizers about fee structure and display options
+- Consider providing guidance to organizers on pros and cons of including fees in ticket prices
+
+## Recent Achievements
+[Add to the existing list]
+14. Implemented ticket quantity validation to prevent overbooking
+15. Added client-side validation for purchase submissions
+
+## Current Status
+- The TicketSelection component now includes validation to ensure users can't select more tickets than available
+- The purchase button is disabled when the selection is invalid
+
+## Next Session Focus
+1. Implement the purchase functionality:
+   - Create a new API endpoint for submitting purchases
+   - Develop the frontend function to call this API
+   - Handle successful purchases (e.g., show confirmation, clear selection)
+2. Improve user feedback:
+   - Add loading states during API calls
+   - Implement error handling and display error messages to the user
+3. Begin integration with PayPal for payment processing
+
+## Reminders
+- Ensure all validations are also implemented on the server-side
+- Consider adding a "max tickets per purchase" limit if needed
+- Test thoroughly with various scenarios (e.g., multiple users trying to book simultaneously)
+
+## Recent Achievements
+[Add to the existing list]
+16. Implemented backend API endpoint for ticket purchases
+17. Created frontend functionality to submit purchases
+18. Added loading state and error handling for purchase submissions
+
+## Current Status
+- The TicketSelection component now includes a functional purchase button that interacts with the backend
+- Basic error handling and loading states have been implemented
+- The backend now has a route and logic to handle ticket purchases
+
+## Next Session Focus
+1. Implement PayPal integration for payment processing
+2. Add success feedback after successful purchases (e.g., confirmation message, redirect to receipt page)
+3. Implement more robust error handling, including specific error messages for different scenarios
+4. Begin work on a user dashboard to view purchased tickets
+
+## Reminders
+- Ensure all API endpoints are properly secured and validated
+- Implement proper logging for purchases and errors
+- Consider implementing a queue system for high-traffic events to prevent overbooking
+- Test the purchase flow thoroughly, including edge cases and error scenarios
+
+## Recent Achievements
+[Add to the existing list]
+19. Completed and tested the full ticket purchase flow, including frontend and backend integration
+20. Implemented proper error handling and user feedback for the purchase process
+
+## Current Status
+- The ticket purchase functionality is now fully implemented and tested, including frontend-backend integration and error handling
+- The project is ready for PayPal integration and further refinement of the user experience
+
+## Next Session Focus
+1. Implement PayPal integration for payment processing
+2. Create a user dashboard for viewing and managing purchased tickets
+3. Enhance the event listing page with search and filter functionality
+4. Implement an organizer dashboard for managing events and viewing sales data
+5. Begin work on the admin interface for managing the platform
+
+## Reminders
+- Ensure all API endpoints are properly secured and validated
+- Implement proper logging for purchases and errors
+- Consider implementing a queue system for high-traffic events to prevent overbooking
+- Test the purchase flow thoroughly, including edge cases and error scenarios
+
+## Recent Achievements
+[Add to the existing list]
+21. Successfully debugged and resolved server configuration issues
+22. Optimized .htaccess file for better performance and security
+23. Improved error logging and debugging practices
+24. Verified functionality of all existing API endpoints
+
+## Current Project Status (as of 2024-10-22)
+- All core functionalities remain implemented and working
+- Backend API is fully functional and tested
+- Frontend development is progressing, with ticket selection and purchase flow implemented
+- Server configuration has been optimized for better performance and security
+
+## Next Steps
+1. Implement PayPal integration for payment processing:
+   - Research PayPal SDK and API requirements
+   - Implement server-side logic for handling PayPal payments
+   - Create frontend components for PayPal payment flow
+   - Test and verify PayPal integration thoroughly
+
+2. Develop user dashboard:
+   - Design and implement a user interface for viewing purchased tickets
+   - Create API endpoints for fetching user-specific ticket data
+   - Implement ticket management features (e.g., viewing QR codes, cancellation)
+
+3. Enhance event listing page:
+   - Implement search functionality
+   - Add filtering options (e.g., by date, category, price range)
+   - Implement pagination or infinite scrolling for better performance
+
+4. Create organizer dashboard:
+   - Design and implement interface for event management
+   - Add sales data visualization
+   - Implement features for managing ticket types and pricing
+
+5. Begin development of admin interface:
+   - Design and implement admin dashboard
+   - Create interfaces for managing users, events, and platform settings
+   - Implement analytics and reporting features
+
+6. Improve overall user experience:
+   - Refine UI/UX design across all pages
+   - Implement more robust error handling and user feedback
+   - Optimize performance, especially for image loading and data fetching
+
+7. Implement advanced features:
+   - Add support for recurring events
+   - Implement a notification system for users and organizers
+   - Create a review and rating system for events
+
+8. Enhance security measures:
+   - Implement rate limiting for API endpoints
+   - Add two-factor authentication option for users
+   - Conduct a thorough security audit of the entire application
+
+## Reminders
+- Continuously update API documentation as new endpoints are added or modified
+- Regularly review and update dependencies for security and performance improvements
+- Maintain comprehensive error logging and monitoring
+- Conduct regular code reviews and refactoring sessions
+- Keep the Project_notes.md file updated with new challenges faced and solutions implemented
+
+## Development Environment Notes
+- Ensure all team members are using consistent development environments
+- Regularly update local databases with the latest schema changes
+- Use feature branches and pull requests for all new development work
+
+## Debugging Practices
+- Utilize detailed error logging in both frontend and backend
+- Implement step-by-step request tracing for complex operations
+- Regularly review server logs for potential issues or optimization opportunities
+- Use browser developer tools for frontend debugging and performance optimization

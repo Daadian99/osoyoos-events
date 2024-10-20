@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Controllers;
+
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use App\Models\Group;
+
+class GroupController
+{
+    private $groupModel;
+
+    public function __construct(Group $groupModel)
+    {
+        $this->groupModel = $groupModel;
+    }
+
+    public function createGroup(Request $request, Response $response): Response
+    {
+        // Implementation for creating a group
+    }
+
+    public function getGroupSuggestions(Request $request, Response $response): Response
+    {
+        // Implementation for getting group suggestions
+    }
+}
+

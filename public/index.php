@@ -4,6 +4,18 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php-error.log');
 
+
+header("Access-Control-Allow-Origin: http://localhost:3000");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Credentials: true");
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header("HTTP/1.1 200 OK");
+    exit();
+}
+
+
+
 // Add this line to test direct file writing
 file_put_contents(__DIR__ . '/../logs/direct-log.txt', "Script started: " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
 
@@ -13,6 +25,8 @@ use Slim\Factory\AppFactory;
 use App\Controllers\UserController;
 use App\Controllers\EventController;
 use App\Controllers\TicketController;
+use App\Controllers\CategoryController;
+use App\Models\Category;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\Ticket;
@@ -22,6 +36,10 @@ use App\Services\EmailService;
 use App\OpenApiConfig;
 use DI\Container;
 use DI\ContainerBuilder;
+
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpException;
+
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -67,7 +85,12 @@ $containerBuilder->addDefinitions([
         return new UserController($c->get(User::class), $jwtSecret);
     },
     EventController::class => function (Container $c) {
-        return new EventController($c->get(Event::class), $c->get(App\Models\Location::class));
+        return new EventController(
+            $c->get(Event::class),
+            $c->get(App\Models\Location::class),
+            $c->get(App\Models\Category::class),
+            $c->get(PDO::class)
+        );
     },
     TicketController::class => function (Container $c) {
         return new TicketController(
@@ -85,10 +108,31 @@ $containerBuilder->addDefinitions([
 $container = $containerBuilder->build();
 
 // Create the app with the container
-$app = AppFactory::createFromContainer($container);
+$app = AppFactory::create();
 
 // Add error middleware
-$app->addErrorMiddleware(true, true, true);
+$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+
+// Define Custom Error Handler
+$customErrorHandler = function (
+    ServerRequestInterface $request,
+    Throwable $exception,
+    bool $displayErrorDetails,
+    bool $logErrors,
+    bool $logErrorDetails
+) use ($app) {
+    $payload = ['error' => $exception->getMessage()];
+    
+    $response = $app->getResponseFactory()->createResponse();
+    $response->getBody()->write(json_encode($payload));
+
+    return $response
+        ->withHeader('Content-Type', 'application/json')
+        ->withStatus(500);
+};
+
+// Set the custom error handler
+$errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
 // Add body parsing middleware
 $app->addBodyParsingMiddleware();
@@ -411,5 +455,71 @@ $app->get('/user/tickets/{purchaseId}', [$container->get(TicketController::class
 $app->delete('/user/tickets/{purchaseId}', [$container->get(TicketController::class), 'cancelTicketPurchase'])
     ->add($jwtMiddleware);
 
+// Add these lines to your routes
+$app->post('/groups', [App\Controllers\GroupController::class, 'createGroup'])
+    ->add($jwtMiddleware);
+$app->get('/groups/suggestions', [App\Controllers\GroupController::class, 'getGroupSuggestions'])
+    ->add($jwtMiddleware);
+
+$app->get('/events/{id}/ticket-types', [$container->get(EventController::class), 'getEventTicketTypes']);
+
+$app->post('/events/{id}/purchase', [$container->get(TicketController::class), 'purchaseTickets'])
+    ->add($jwtMiddleware);
+
+// Add this to your container definitions
+$container->set(App\Models\Category::class, function (Container $c) {
+    return new App\Models\Category($c->get(PDO::class));
+});
+
+$container->set(CategoryController::class, function (Container $c) {
+    return new CategoryController($c->get(App\Models\Category::class));
+});
+
+// Add these routes
+$app->get('/categories', [$container->get(App\Controllers\CategoryController::class), 'getAllCategories']);
+$app->post('/categories', [$container->get(App\Controllers\CategoryController::class), 'createCategory'])
+    ->add($jwtMiddleware)
+    ->add(new RoleMiddleware(['admin']));
+
+$app->any('{route:.*}', function (Request $request, Response $response) {
+    $route = $request->getAttribute('route');
+    error_log("Catch-all route hit. Requested path: " . $route);
+    $response->getBody()->write(json_encode(['error' => 'Route not found', 'path' => $route]));
+    return $response
+        ->withHeader('Content-Type', 'application/json')
+        ->withStatus(404);
+});
+
+$routes = $app->getRouteCollector()->getRoutes();
+$routeInfo = [];
+foreach ($routes as $route) {
+    $routeInfo[] = [
+        'method' => $route->getMethods(),
+        'pattern' => $route->getPattern(),
+    ];
+}
+error_log("Routes defined: " . json_encode($routeInfo));
+
 $app->run();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

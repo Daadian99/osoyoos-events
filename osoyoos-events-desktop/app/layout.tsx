@@ -1,34 +1,28 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from 'next/link';
 import { AuthProvider } from './AuthContext';
 
-// Commenting out local font loading for testing
-// import localFont from "next/font/local";
-// const geistSans = localFont({
-//   src: "./fonts/GeistVF.woff",
-//   variable: "--font-geist-sans",
-//   weight: "100 900",
-// });
-// const geistMono = localFont({
-//   src: "./fonts/GeistMonoVF.woff",
-//   variable: "--font-geist-mono",
-//   weight: "100 900",
-// });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Osoyoos Event Ticketing",
-  description: "Book tickets for events in Osoyoos",
+  title: "Osoyoos Events",
+  description: "Event ticketing system for Osoyoos",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
       <head>
         {/* ... other head content ... */}
         <meta httpEquiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline';" />
       </head>
-      <body>
+      <body className={inter.className}>
         <AuthProvider>
           <header className="bg-blue-600 text-white p-4">
             <nav className="container mx-auto flex justify-between items-center">

@@ -30,35 +30,28 @@ class EventController
         error_log("EventController: getEvents method called");
         
         try {
-            $queryParams = $request->getQueryParams();
-            $page = isset($queryParams['page']) ? (int)$queryParams['page'] : 1;
-            $locationSlug = isset($queryParams['location']) ? $queryParams['location'] : null;
-
-            error_log("Page: " . $page . ", Location Slug: " . ($locationSlug ?? 'null'));
-
-            if ($locationSlug) {
-                $location = $this->locationModel->getLocationBySlug($locationSlug);
-                if (!$location) {
-                    error_log("Location not found for slug: " . $locationSlug);
-                    return $this->jsonResponse($response, ['error' => 'Location not found'], 404);
-                }
-                $events = $this->eventModel->getEventsByLocation($location['id'], $page);
-            } else {
-                $events = $this->eventModel->getAllEvents($page);
-            }
+            error_log("Attempting to fetch events");
+            $events = $this->eventModel->getAllEventsWithOrganizer();
 
             error_log("Number of events retrieved: " . count($events));
+            error_log("Events data: " . json_encode($events));
 
-            if (empty($events)) {
-                error_log("No events found");
-                return $this->jsonResponse($response, ['events' => []], 200);
+            $result = ['events' => $events];
+            $jsonResult = json_encode($result);
+
+            if ($jsonResult === false) {
+                error_log("JSON encoding failed: " . json_last_error_msg());
+                throw new \Exception("Failed to encode events data");
             }
 
-            return $this->jsonResponse($response, ['events' => $events]);
+            error_log("Final JSON response: " . $jsonResult);
+
+            $response->getBody()->write($jsonResult);
+            return $response->withHeader('Content-Type', 'application/json');
         } catch (\Exception $e) {
             error_log("Error in getEvents: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
-            return $this->jsonResponse($response, ['error' => 'Internal server error'], 500);
+            return $this->jsonResponse($response, ['error' => 'Internal server error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -82,11 +75,19 @@ class EventController
         }
 
         $categoryIds = $data['category_ids'] ?? [];
+        $organizerPresentationPhrase = $data['organizer_presentation_phrase'] ?? 'Presented by';
         
         try {
             $this->db->beginTransaction();
             
-            $eventId = $this->eventModel->createEvent($data['title'], $data['description'], $data['date'], $data['location_id'], $user['id']);
+            $eventId = $this->eventModel->createEvent(
+                $data['title'], 
+                $data['description'], 
+                $data['date'], 
+                $data['location_id'], 
+                $user['id'],
+                $organizerPresentationPhrase
+            );
             
             foreach ($categoryIds as $categoryId) {
                 $this->categoryModel->addEventCategory($eventId, $categoryId);
@@ -124,6 +125,8 @@ class EventController
                     'location' => $event['location'],
                     'organizer_id' => $event['organizer_id'],
                     'organizer_name' => $event['organizer_name'] ?? null,
+                    'show_organizer' => $event['display_name_on_events'] == 1, // Add this line
+                    'organizer_presentation_phrase' => $event['organizer_presentation_phrase'] ?? 'Presented by',
                 ];
                 return $this->jsonResponse($response, $eventData);
             } else {
@@ -164,11 +167,19 @@ class EventController
         $date = $data['date'] ?? $event['date'];
         $location = $data['location'] ?? $event['location'];
         $categoryIds = $data['category_ids'] ?? null;
+        $organizerPresentationPhrase = $data['organizer_presentation_phrase'] ?? null;
 
         try {
             $this->db->beginTransaction();
             
-            $success = $this->eventModel->updateEvent($id, $title, $description, $date, $location);
+            $success = $this->eventModel->updateEvent(
+                $id, 
+                $title, 
+                $description, 
+                $date, 
+                $location, 
+                $organizerPresentationPhrase
+            );
             
             if ($categoryIds !== null) {
                 // Remove all existing categories

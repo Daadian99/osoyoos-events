@@ -138,4 +138,20 @@ class Event {
     }
 
     // Add other methods (createEvent, getEvent, updateEvent, deleteEvent) here...
+
+    public function getAllEventsWithOrganizer($page = 1, $perPage = 10)
+    {
+        $offset = ($page - 1) * $perPage;
+        $sql = "SELECT e.*, u.username as organizer_name, u.display_name_on_events 
+                FROM events e
+                LEFT JOIN users u ON e.organizer_id = u.id
+                ORDER BY e.date DESC
+                LIMIT :limit OFFSET :offset";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

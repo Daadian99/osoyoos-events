@@ -18,25 +18,32 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting login with:', { email, password });
       const response = await fetch('http://osoyoos-events.localhost/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ email, password }),
-        credentials: 'include',
-        mode: 'cors'
+        credentials: 'include'
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Login failed');
+        const errorData = await response.json();
+        console.error('Login error response:', errorData);
+        throw new Error(errorData.error || 'Login failed');
       }
 
       const data = await response.json();
-      console.log('Login successful:', data); // Add this line for debugging
+      console.log('Login successful:', data);
       login(data.token, data.role);
       
       router.push('/dashboard');
     } catch (err) {
-      console.error('Login error:', err); // Add this line for debugging
+      console.error('Login error:', err);
       setError('Invalid email or password');
     } finally {
       setIsLoading(false);

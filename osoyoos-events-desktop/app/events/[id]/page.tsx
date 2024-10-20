@@ -12,7 +12,9 @@ interface EventDetails {
   date: string;
   location: string;
   organizer_id: number;
-  organizer_name: string;
+  organizer_name: string | null;
+  show_organizer: boolean;
+  organizer_presentation_phrase: string;
 }
 
 const EventDetailsPage = () => {
@@ -40,7 +42,9 @@ const EventDetailsPage = () => {
       }
     };
 
-    fetchEventDetails();
+    if (id) {
+      fetchEventDetails();
+    }
   }, [id]);
 
   if (isLoading) return <div>Loading...</div>;
@@ -51,7 +55,11 @@ const EventDetailsPage = () => {
     <div className="max-w-4xl mx-auto mt-8 p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">{eventDetails.title}</h1>
-        <p className="text-xl mb-2">Presented by {eventDetails.organizer_name}</p>
+        {eventDetails.show_organizer && eventDetails.organizer_name && (
+          <p className="text-xl mb-2">
+            {eventDetails.organizer_presentation_phrase} {eventDetails.organizer_name}
+          </p>
+        )}
         <p className="text-lg mb-2">
           {new Date(eventDetails.date).toLocaleDateString('en-US', { 
             weekday: 'long', 

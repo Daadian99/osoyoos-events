@@ -52,26 +52,33 @@ class UserController
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
 
-        if (empty($email) || empty($password)) {
-            $response->getBody()->write(json_encode(['error' => 'Missing email or password']));
-            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-        }
+        error_log("Login attempt for email: $email"); // Add this line for debugging
 
-        $user = $this->userModel->login($email, $password);
+        try {
+            $user = $this->userModel->getUserByEmail($email);
 
-        if ($user) {
-            $token = $this->generateToken($user);
-            error_log("UserController: Login successful for user ID: " . $user['id']);
-            error_log("UserController: Generated token: " . $token);
-            $response->getBody()->write(json_encode(['token' => $token, 'user' => [
-                'id' => $user['id'],
-                'username' => $user['username'],
-                'role' => $user['role']
-            ]]));
-            return $response->withHeader('Content-Type', 'application/json');
-        } else {
-            $response->getBody()->write(json_encode(['error' => 'Invalid credentials']));
-            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+            if (!$user || !password_verify($password, $user['password_hash'])) {
+                error_log("Login failed: Invalid credentials for email: $email"); // Add this line for debugging
+                return $this->jsonResponse($response, ['error' => 'Invalid credentials'], 401);
+            }
+
+            $token = $this->generateJwtToken($user);
+
+            error_log("Login successful for email: $email"); // Add this line for debugging
+
+            return $this->jsonResponse($response, [
+                'message' => 'Login successful',
+                'token' => $token,
+                'user' => [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                    'email' => $user['email'],
+                    'role' => $user['role']
+                ]
+            ]);
+        } catch (Exception $e) {
+            error_log("Login error: " . $e->getMessage()); // Add this line for debugging
+            return $this->jsonResponse($response, ['error' => 'An error occurred during login'], 500);
         }
     }
 

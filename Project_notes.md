@@ -1,5 +1,19 @@
 # Osoyoos Event Ticketing System - Project Notes
 
+## Project Structure and Goals
+
+1. Separate Interfaces:
+   - Desktop Web Interface (Current Focus): osoyoos-events-desktop
+   - Mobile Web Interface (Future): osoyoos-events-mobile
+   - Native Mobile Apps (Future): To be developed after web interfaces
+
+2. Desktop Interface Focus:
+   - Optimize for wider screens
+   - No need for mobile responsiveness in the desktop version
+
+3. API-First Approach:
+   - Develop a robust API to support all interfaces and future mobile apps
+
 ## Current Project Status (as of 2024-10-21)
 - All core functionalities are implemented and working:
   - User authentication (registration, login) with JWT
@@ -459,3 +473,32 @@ C:.
 - Implement step-by-step request tracing for complex operations
 - Regularly review server logs for potential issues or optimization opportunities
 - Use browser developer tools for frontend debugging and performance optimization
+
+## Upcoming Features and Enhancements
+
+1. Seating Chart System:
+   - Allow organizers to create custom seating charts for venues
+   - Implement a user interface for attendees to select specific seats
+
+2. Enhanced Group Ticketing:
+   - Improve the group option in ticket selection
+   - Implement logic to match users with existing groups or create new groups
+   - Consider group management features (e.g., group leader, invitations)
+
+3. Event Creation/Editing Form:
+   - Develop a comprehensive form for organizers to create and edit events
+   - Include all necessary fields, including the new "Presented by" customization
+
+4. User Profile Management:
+   - Create interfaces for users to manage their profiles, preferences, and settings
+
+5. Advanced Search and Filtering:
+   - Implement robust search functionality for events
+   - Add filters for categories, dates, locations, etc.
+
+## Development Guidelines
+
+1. Focus on desktop-specific design and functionality
+2. Ensure all new features are API-driven to support future mobile development
+3. Maintain clear separation between desktop and future mobile interfaces
+4. Prioritize user experience for desktop users (e.g., larger screens, mouse interactions)
